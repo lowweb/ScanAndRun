@@ -3,6 +3,18 @@ from typing import Optional, List
 from datetime import datetime
 
 
+# Auth schemas
+class LoginRequest(BaseModel):
+    login: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
+
+
 # Base schemas
 class DepartmentBase(BaseModel):
     name: str
@@ -73,7 +85,8 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    pass
+    login: Optional[str] = None
+    password: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -84,6 +97,7 @@ class UserUpdate(BaseModel):
 
 class UserRead(UserBase):
     id: int
+    login: Optional[str] = None
     department: Optional[DepartmentRead] = None
     role: Optional[RoleRead] = None
     

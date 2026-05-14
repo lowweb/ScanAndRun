@@ -1,9 +1,15 @@
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 from models import (
     Department, Role, EquipmentType, Status, 
     User, Equipment, MovementHistory
 )
 from datetime import datetime
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 
 def init_db(db: Session):
@@ -83,10 +89,10 @@ def init_db(db: Session):
     
     # Create Users
     users_data = [
-        {"full_name": "Администратор Системы", "department": "ИТ отдел", "role": "admin"},
-        {"full_name": "Иван Иванов", "department": "ИТ отдел", "role": "user"},
-        {"full_name": "Петр Петров", "department": "Бухгалтерия", "role": "user"},
-        {"full_name": "Мария Сидорова", "department": "Отдел продаж", "role": "user"},
+        {"full_name": "Администратор Системы", "login": "admin", "department": "ИТ отдел", "role": "admin"},
+        {"full_name": "Иван Иванов", "login": "ivanov", "department": "ИТ отдел", "role": "user"},
+        {"full_name": "Петр Петров", "login": "petrov", "department": "Бухгалтерия", "role": "user"},
+        {"full_name": "Мария Сидорова", "login": "sidorova", "department": "Отдел продаж", "role": "user"},
     ]
     
     users = {}
@@ -95,6 +101,8 @@ def init_db(db: Session):
         if not user:
             user = User(
                 full_name=user_data["full_name"],
+                login=user_data["login"],
+                password_hash=get_password_hash("123"),  # Default password for all test users
                 department_id=departments[user_data["department"]].id,
                 role_id=roles[user_data["role"]].id
             )

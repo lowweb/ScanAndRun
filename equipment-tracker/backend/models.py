@@ -61,6 +61,8 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String(200), nullable=False)
+    login = Column(String(50), unique=True, nullable=True, index=True)
+    password_hash = Column(String(255), nullable=True)
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
     

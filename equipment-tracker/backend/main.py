@@ -1,17 +1,46 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 import models
 from init_db import init_db
 from database import get_db
+from schemas import LoginRequest, LoginResponse
 
 app = FastAPI(
     title="Equipment Tracker API",
     description="API для учета движения оборудования",
     version="1.0.0"
 )
+
+# Security settings
+SECRET_KEY = "your-secret-key-change-in-production"  # Change this in production!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 
 # Dependency
@@ -21,6 +50,26 @@ def get_database_session():
         yield db
     finally:
         db.close()
+
+
+def get_current_user(token: str, db: Session = Depends(get_database_session)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        login: str = payload.get("sub")
+        if login is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(models.User).filter(models.User.login == login).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 
 @app.on_event("startup")
@@ -33,6 +82,55 @@ async def startup_event():
         print(f"Error initializing database: {e}")
     finally:
         db.close()
+
+
+# Auth endpoints
+@app.post("/api/auth/login", response_model=LoginResponse)
+def login(login_request: LoginRequest, db: Session = Depends(get_database_session)):
+    user = db.query(models.User).filter(models.User.login == login_request.login).first()
+    
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect login or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not verify_password(login_request.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect login or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(data={"sub": user.login})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "full_name": user.full_name,
+            "login": user.login,
+            "department_id": user.department_id,
+            "role_id": user.role_id,
+            "department": {"id": user.department.id, "name": user.department.name} if user.department else None,
+            "role": {"id": user.role.id, "name": user.role.name} if user.role else None,
+        }
+    }
+
+
+@app.get("/api/auth/me")
+def get_current_user_info(current_user: models.User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "login": current_user.login,
+        "department_id": current_user.department_id,
+        "role_id": current_user.role_id,
+        "department": {"id": current_user.department.id, "name": current_user.department.name} if current_user.department else None,
+        "role": {"id": current_user.role.id, "name": current_user.role.name} if current_user.role else None,
+    }
 
 
 # Department endpoints

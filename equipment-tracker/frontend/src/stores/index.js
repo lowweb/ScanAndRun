@@ -3,6 +3,67 @@ import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
+// Create axios instance with auth interceptor
+const apiClient = axios.create({
+  baseURL: API_BASE,
+})
+
+apiClient.interceptors.request.use(config => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    user: null,
+    token: localStorage.getItem('access_token') || null,
+  }),
+
+  getters: {
+    isAuthenticated: (state) => !!state.token,
+    isAdmin: (state) => state.user?.role?.name === 'admin',
+    currentUser: (state) => state.user,
+  },
+
+  actions: {
+    async login(login, password) {
+      try {
+        const response = await apiClient.post('/auth/login', { login, password })
+        this.token = response.data.access_token
+        this.user = response.data.user
+        localStorage.setItem('access_token', this.token)
+        return response.data
+      } catch (error) {
+        console.error('Login error:', error)
+        throw error
+      }
+    },
+
+    logout() {
+      this.user = null
+      this.token = null
+      localStorage.removeItem('access_token')
+    },
+
+    async checkAuth() {
+      if (!this.token) {
+        return false
+      }
+      try {
+        const response = await apiClient.get('/auth/me')
+        this.user = response.data
+        return true
+      } catch (error) {
+        this.logout()
+        return false
+      }
+    },
+  },
+})
+
 export const useEquipmentStore = defineStore('equipment', {
   state: () => ({
     equipmentTypes: [],
@@ -26,7 +87,7 @@ export const useEquipmentStore = defineStore('equipment', {
   actions: {
     async fetchEquipmentTypes() {
       try {
-        const response = await axios.get(`${API_BASE}/equipment-types`)
+        const response = await apiClient.get('/equipment-types')
         this.equipmentTypes = response.data
         if (!this.currentEquipmentType && this.equipmentTypes.length > 0) {
           this.currentEquipmentType = this.equipmentTypes[0]
@@ -39,9 +100,9 @@ export const useEquipmentStore = defineStore('equipment', {
     async fetchStatuses(equipmentTypeId = null) {
       try {
         const url = equipmentTypeId 
-          ? `${API_BASE}/statuses?equipment_type_id=${equipmentTypeId}`
-          : `${API_BASE}/statuses`
-        const response = await axios.get(url)
+          ? `/statuses?equipment_type_id=${equipmentTypeId}`
+          : '/statuses'
+        const response = await apiClient.get(url)
         this.statuses = response.data
       } catch (error) {
         console.error('Error fetching statuses:', error)
@@ -50,7 +111,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async fetchDepartments() {
       try {
-        const response = await axios.get(`${API_BASE}/departments`)
+        const response = await apiClient.get('/departments')
         this.departments = response.data
       } catch (error) {
         console.error('Error fetching departments:', error)
@@ -59,7 +120,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async fetchUsers() {
       try {
-        const response = await axios.get(`${API_BASE}/users`)
+        const response = await apiClient.get('/users')
         this.users = response.data
       } catch (error) {
         console.error('Error fetching users:', error)
@@ -68,7 +129,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async fetchRoles() {
       try {
-        const response = await axios.get(`${API_BASE}/roles`)
+        const response = await apiClient.get('/roles')
         this.roles = response.data
       } catch (error) {
         console.error('Error fetching roles:', error)
@@ -83,7 +144,7 @@ export const useEquipmentStore = defineStore('equipment', {
             params.append(key, filters[key])
           }
         })
-        const response = await axios.get(`${API_BASE}/equipment?${params}`)
+        const response = await apiClient.get(`/equipment?${params}`)
         this.equipment = response.data
         return response.data
       } catch (error) {
@@ -94,7 +155,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async getEquipmentByBarcode(barcode) {
       try {
-        const response = await axios.get(`${API_BASE}/equipment/${barcode}`)
+        const response = await apiClient.get(`/equipment/${barcode}`)
         return response.data
       } catch (error) {
         if (error.response?.status === 404) {
@@ -111,7 +172,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async changeStatus(barcodes, statusId, userId, comment = null, targetUserId = null) {
       try {
-        const response = await axios.post(`${API_BASE}/movement/change-status`, null, {
+        const response = await apiClient.post('/movement/change-status', null, {
           params: {
             barcodes,
             status_id: statusId,
@@ -129,7 +190,7 @@ export const useEquipmentStore = defineStore('equipment', {
 
     async createEquipment(equipmentData) {
       try {
-        const response = await axios.post(`${API_BASE}/equipment`, null, {
+        const response = await apiClient.post('/equipment', null, {
           params: equipmentData
         })
         return response.data
@@ -167,7 +228,7 @@ export const useHistoryStore = defineStore('history', {
             }
           }
         })
-        const response = await axios.get(`${API_BASE}/movement-history?${params}`)
+        const response = await apiClient.get(`/movement-history?${params}`)
         this.history = response.data
         return response.data
       } catch (error) {
