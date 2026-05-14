@@ -1,53 +1,51 @@
 ```
 # Dependencies
-backend/venv/
-backend/.venv/
-frontend/node_modules/
+node_modules/
 
-# Python
+# Build artifacts
+dist/
+build/
+target/
+
+# Temporary files
+*.tmp
+*.swp
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# IDE files
+.vscode/
+.idea/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-.venv/
-venv/
-ENV/
-.env
-.env.local
-.env.*
-.env.local.*
-.env.prod.*
-.env.test.*
 
-# Build artifacts
-backend/dist/
-backend/build/
-frontend/dist/
-frontend/build/
-
-# Logs
-*.log
-logs/
-
-# Editor/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage
-.coverage
-htmlcov/
-coverage/
-
-# Testing
-.pytest_cache/
-.mypy_cache/
+# Compression files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
 ```
