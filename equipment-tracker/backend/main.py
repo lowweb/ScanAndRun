@@ -43,16 +43,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-# Dependency
-def get_database_session():
-    db = get_db()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_user(token: str, db: Session = Depends(get_database_session)):
+def get_current_user(token: str, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -75,7 +66,7 @@ def get_current_user(token: str, db: Session = Depends(get_database_session)):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-    db = next(get_database_session())
+    db = next(get_db())
     try:
         init_db(db)
     except Exception as e:
@@ -86,7 +77,7 @@ async def startup_event():
 
 # Auth endpoints
 @app.post("/api/auth/login", response_model=LoginResponse)
-def login(login_request: LoginRequest, db: Session = Depends(get_database_session)):
+def login(login_request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.login == login_request.login).first()
     
     if not user or not user.password_hash:
@@ -135,28 +126,28 @@ def get_current_user_info(current_user: models.User = Depends(get_current_user))
 
 # Department endpoints
 @app.get("/api/departments", response_model=List[dict])
-def get_departments(db: Session = Depends(get_database_session)):
+def get_departments(db: Session = Depends(get_db)):
     departments = db.query(models.Department).all()
     return departments
 
 
 # Role endpoints
 @app.get("/api/roles", response_model=List[dict])
-def get_roles(db: Session = Depends(get_database_session)):
+def get_roles(db: Session = Depends(get_db)):
     roles = db.query(models.Role).all()
     return roles
 
 
 # Equipment Type endpoints
 @app.get("/api/equipment-types", response_model=List[dict])
-def get_equipment_types(db: Session = Depends(get_database_session)):
+def get_equipment_types(db: Session = Depends(get_db)):
     equipment_types = db.query(models.EquipmentType).all()
     return equipment_types
 
 
 # Status endpoints
 @app.get("/api/statuses", response_model=List[dict])
-def get_statuses(db: Session = Depends(get_database_session), equipment_type_id: Optional[int] = None):
+def get_statuses(db: Session = Depends(get_db), equipment_type_id: Optional[int] = None):
     if equipment_type_id:
         statuses = db.query(models.Status).filter(
             models.Status.equipment_type_id == equipment_type_id
@@ -168,13 +159,13 @@ def get_statuses(db: Session = Depends(get_database_session), equipment_type_id:
 
 # User endpoints
 @app.get("/api/users", response_model=List[dict])
-def get_users(db: Session = Depends(get_database_session)):
+def get_users(db: Session = Depends(get_db)):
     users = db.query(models.User).all()
     return users
 
 
 @app.post("/api/users")
-def create_user(full_name: str, department_id: int, role_id: int, db: Session = Depends(get_database_session)):
+def create_user(full_name: str, department_id: int, role_id: int, db: Session = Depends(get_db)):
     user = models.User(
         full_name=full_name,
         department_id=department_id,
@@ -189,7 +180,7 @@ def create_user(full_name: str, department_id: int, role_id: int, db: Session = 
 # Equipment endpoints
 @app.get("/api/equipment", response_model=List[dict])
 def get_equipment(
-    db: Session = Depends(get_database_session),
+    db: Session = Depends(get_db),
     equipment_type_id: Optional[int] = None,
     status_id: Optional[int] = None,
     department_id: Optional[int] = None,
@@ -211,7 +202,7 @@ def get_equipment(
 
 
 @app.get("/api/equipment/{barcode}")
-def get_equipment_by_barcode(barcode: str, db: Session = Depends(get_database_session)):
+def get_equipment_by_barcode(barcode: str, db: Session = Depends(get_db)):
     equipment = db.query(models.Equipment).filter(models.Equipment.barcode == barcode).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
@@ -228,7 +219,7 @@ def create_equipment(
     user_id: Optional[int] = None,
     comment: Optional[str] = None,
     created_by_id: Optional[int] = 1,
-    db: Session = Depends(get_database_session)
+    db: Session = Depends(get_db)
 ):
     # Check if barcode already exists
     existing = db.query(models.Equipment).filter(models.Equipment.barcode == barcode).first()
@@ -271,7 +262,7 @@ def update_equipment(
     department_id: Optional[int] = None,
     user_id: Optional[int] = None,
     comment: Optional[str] = None,
-    db: Session = Depends(get_database_session)
+    db: Session = Depends(get_db)
 ):
     equipment = db.query(models.Equipment).filter(models.Equipment.id == equipment_id).first()
     if not equipment:
@@ -296,7 +287,7 @@ def update_equipment(
 # Movement History endpoints
 @app.get("/api/movement-history", response_model=List[dict])
 def get_movement_history(
-    db: Session = Depends(get_database_session),
+    db: Session = Depends(get_db),
     equipment_id: Optional[int] = None,
     user_id: Optional[int] = None,
     department_id: Optional[int] = None,
@@ -334,7 +325,7 @@ def change_status(
     user_id: int,
     comment: Optional[str] = None,
     target_user_id: Optional[int] = None,
-    db: Session = Depends(get_database_session)
+    db: Session = Depends(get_db)
 ):
     """Change status for multiple equipment items by barcode"""
     results = []
@@ -380,7 +371,7 @@ def change_status(
 # Get equipment not in "В работе" status
 @app.get("/api/equipment/not-active")
 def get_not_active_equipment(
-    db: Session = Depends(get_database_session),
+    db: Session = Depends(get_db),
     equipment_type_id: Optional[int] = None
 ):
     """Get equipment that is not in active status (not 'МОЛ' or 'В работе')"""
