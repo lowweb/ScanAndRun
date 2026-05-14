@@ -69,6 +69,7 @@ class User(Base):
     department = relationship("Department", back_populates="users")
     role = relationship("Role", back_populates="users")
     
+    equipment = relationship("Equipment", back_populates="user", foreign_keys="Equipment.user_id")
     created_equipment = relationship("Equipment", back_populates="created_by", foreign_keys="Equipment.created_by_id")
     movement_history = relationship("MovementHistory", back_populates="user")
 
@@ -91,7 +92,7 @@ class Equipment(Base):
     equipment_type = relationship("EquipmentType", back_populates="equipment")
     status = relationship("Status", back_populates="equipment")
     department = relationship("Department", back_populates="equipment")
-    user = relationship("User", back_populates="equipment")
+    user = relationship("User", back_populates="equipment", foreign_keys=[user_id])
     created_by = relationship("User", back_populates="created_equipment", foreign_keys=[created_by_id])
     
     movement_history = relationship("MovementHistory", back_populates="equipment", order_by="MovementHistory.created_at.desc()")
