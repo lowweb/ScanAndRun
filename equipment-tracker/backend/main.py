@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -7,13 +8,26 @@ from passlib.context import CryptContext
 
 import models
 from init_db import init_db
-from database import get_db
+from database import get_db, SessionLocal, engine
 from schemas import LoginRequest, LoginResponse
 
 app = FastAPI(
     title="Equipment Tracker API",
     description="API для учета движения оборудования",
     version="1.0.0"
+)
+
+# CORS settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Security settings
@@ -66,7 +80,11 @@ def get_current_user(token: str, db: Session = Depends(get_db)):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
-    db = next(get_db())
+    # First create all tables
+    models.Base.metadata.create_all(bind=engine)
+    
+    # Then initialize with test data
+    db = SessionLocal()
     try:
         init_db(db)
     except Exception as e:
