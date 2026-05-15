@@ -23,9 +23,12 @@ def init_db(db: Session):
         if not dept:
             dept = Department(name=dept_name)
             db.add(dept)
-            db.commit()
-            db.refresh(dept)
         departments[dept_name] = dept
+    
+    db.commit()
+    # Refresh to get IDs
+    for dept_name in departments_data:
+        departments[dept_name] = db.query(Department).filter(Department.name == dept_name).first()
     
     # Create Roles
     roles_data = ["admin", "user"]
@@ -35,9 +38,10 @@ def init_db(db: Session):
         if not role:
             role = Role(name=role_name)
             db.add(role)
-            db.commit()
-            db.refresh(role)
-        roles[role_name] = role
+    
+    db.commit()
+    for role_name in roles_data:
+        roles[role_name] = db.query(Role).filter(Role.name == role_name).first()
     
     # Create Equipment Types
     equipment_types_data = ["Картридж", "Комп. и орг. техника"]
@@ -47,9 +51,10 @@ def init_db(db: Session):
         if not eq_type:
             eq_type = EquipmentType(name=type_name)
             db.add(eq_type)
-            db.commit()
-            db.refresh(eq_type)
-        equipment_types[type_name] = eq_type
+    
+    db.commit()
+    for type_name in equipment_types_data:
+        equipment_types[type_name] = db.query(EquipmentType).filter(EquipmentType.name == type_name).first()
     
     # Create Statuses for Cartridges
     cartridge_statuses = ["МОЛ", "Заправка", "Склад - на заправку", "Склад - выдача"]
@@ -68,9 +73,13 @@ def init_db(db: Session):
                 equipment_type_id=equipment_types["Картридж"].id
             )
             db.add(status)
-            db.commit()
-            db.refresh(status)
-        statuses[f"cartridge_{status_name}"] = status
+    
+    db.commit()
+    for status_name in cartridge_statuses:
+        statuses[f"cartridge_{status_name}"] = db.query(Status).filter(
+            Status.name == status_name,
+            Status.equipment_type_id == equipment_types["Картридж"].id
+        ).first()
     
     for status_name in computer_statuses:
         status = db.query(Status).filter(
@@ -83,9 +92,13 @@ def init_db(db: Session):
                 equipment_type_id=equipment_types["Комп. и орг. техника"].id
             )
             db.add(status)
-            db.commit()
-            db.refresh(status)
-        statuses[f"computer_{status_name}"] = status
+    
+    db.commit()
+    for status_name in computer_statuses:
+        statuses[f"computer_{status_name}"] = db.query(Status).filter(
+            Status.name == status_name,
+            Status.equipment_type_id == equipment_types["Комп. и орг. техника"].id
+        ).first()
     
     # Create Users
     users_data = [
@@ -97,7 +110,7 @@ def init_db(db: Session):
     
     users = {}
     for user_data in users_data:
-        user = db.query(User).filter(User.full_name == user_data["full_name"]).first()
+        user = db.query(User).filter(User.login == user_data["login"]).first()
         if not user:
             user = User(
                 full_name=user_data["full_name"],
@@ -107,9 +120,10 @@ def init_db(db: Session):
                 role_id=roles[user_data["role"]].id
             )
             db.add(user)
-            db.commit()
-            db.refresh(user)
-        users[user_data["full_name"]] = user
+    
+    db.commit()
+    for user_data in users_data:
+        users[user_data["full_name"]] = db.query(User).filter(User.login == user_data["login"]).first()
     
     # Create Test Equipment
     test_equipment = [
@@ -213,10 +227,11 @@ def init_db(db: Session):
             )
             db.add(equipment)
             
-            # Create initial movement history entry
+            # Commit to get equipment ID
             db.commit()
             db.refresh(equipment)
             
+            # Create initial movement history entry
             movement = MovementHistory(
                 equipment_id=equipment.id,
                 status_id=statuses[status_key].id,
