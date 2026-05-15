@@ -143,28 +143,46 @@ def get_current_user_info(current_user: models.User = Depends(get_current_user))
 
 
 # Department endpoints
-@app.get("/api/departments", response_model=List[dict])
+@app.get("/api/departments")
 def get_departments(db: Session = Depends(get_db)):
     departments = db.query(models.Department).all()
-    return departments
+    return [
+        {
+            "id": dept.id,
+            "name": dept.name
+        }
+        for dept in departments
+    ]
 
 
 # Role endpoints
-@app.get("/api/roles", response_model=List[dict])
+@app.get("/api/roles")
 def get_roles(db: Session = Depends(get_db)):
     roles = db.query(models.Role).all()
-    return roles
+    return [
+        {
+            "id": role.id,
+            "name": role.name
+        }
+        for role in roles
+    ]
 
 
 # Equipment Type endpoints
-@app.get("/api/equipment-types", response_model=List[dict])
+@app.get("/api/equipment-types")
 def get_equipment_types(db: Session = Depends(get_db)):
     equipment_types = db.query(models.EquipmentType).all()
-    return equipment_types
+    return [
+        {
+            "id": et.id,
+            "name": et.name
+        }
+        for et in equipment_types
+    ]
 
 
 # Status endpoints
-@app.get("/api/statuses", response_model=List[dict])
+@app.get("/api/statuses")
 def get_statuses(db: Session = Depends(get_db), equipment_type_id: Optional[int] = None):
     if equipment_type_id:
         statuses = db.query(models.Status).filter(
@@ -172,14 +190,31 @@ def get_statuses(db: Session = Depends(get_db), equipment_type_id: Optional[int]
         ).all()
     else:
         statuses = db.query(models.Status).all()
-    return statuses
+    
+    return [
+        {
+            "id": status.id,
+            "name": status.name,
+            "equipment_type_id": status.equipment_type_id
+        }
+        for status in statuses
+    ]
 
 
 # User endpoints
-@app.get("/api/users", response_model=List[dict])
+@app.get("/api/users")
 def get_users(db: Session = Depends(get_db)):
     users = db.query(models.User).all()
-    return users
+    return [
+        {
+            "id": user.id,
+            "full_name": user.full_name,
+            "login": user.login,
+            "department_id": user.department_id,
+            "role_id": user.role_id
+        }
+        for user in users
+    ]
 
 
 @app.post("/api/users")
@@ -196,7 +231,7 @@ def create_user(full_name: str, department_id: int, role_id: int, db: Session = 
 
 
 # Equipment endpoints
-@app.get("/api/equipment", response_model=List[dict])
+@app.get("/api/equipment")
 def get_equipment(
     db: Session = Depends(get_db),
     equipment_type_id: Optional[int] = None,
@@ -216,7 +251,25 @@ def get_equipment(
         query = query.filter(models.Equipment.barcode == barcode)
     
     equipment_list = query.all()
-    return equipment_list
+    
+    # Convert SQLAlchemy models to dictionaries
+    result = []
+    for eq in equipment_list:
+        result.append({
+            "id": eq.id,
+            "name": eq.name,
+            "barcode": eq.barcode,
+            "equipment_type_id": eq.equipment_type_id,
+            "status_id": eq.status_id,
+            "department_id": eq.department_id,
+            "user_id": eq.user_id,
+            "comment": eq.comment,
+            "created_by_id": eq.created_by_id,
+            "created_at": eq.created_at.isoformat() if eq.created_at else None,
+            "updated_at": eq.updated_at.isoformat() if eq.updated_at else None
+        })
+    
+    return result
 
 
 @app.get("/api/equipment/{barcode}")
@@ -224,7 +277,20 @@ def get_equipment_by_barcode(barcode: str, db: Session = Depends(get_db)):
     equipment = db.query(models.Equipment).filter(models.Equipment.barcode == barcode).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
-    return equipment
+    
+    return {
+        "id": equipment.id,
+        "name": equipment.name,
+        "barcode": equipment.barcode,
+        "equipment_type_id": equipment.equipment_type_id,
+        "status_id": equipment.status_id,
+        "department_id": equipment.department_id,
+        "user_id": equipment.user_id,
+        "comment": equipment.comment,
+        "created_by_id": equipment.created_by_id,
+        "created_at": equipment.created_at.isoformat() if equipment.created_at else None,
+        "updated_at": equipment.updated_at.isoformat() if equipment.updated_at else None
+    }
 
 
 @app.post("/api/equipment")
@@ -269,7 +335,19 @@ def create_equipment(
     db.add(movement)
     db.commit()
     
-    return equipment
+    return {
+        "id": equipment.id,
+        "name": equipment.name,
+        "barcode": equipment.barcode,
+        "equipment_type_id": equipment.equipment_type_id,
+        "status_id": equipment.status_id,
+        "department_id": equipment.department_id,
+        "user_id": equipment.user_id,
+        "comment": equipment.comment,
+        "created_by_id": equipment.created_by_id,
+        "created_at": equipment.created_at.isoformat() if equipment.created_at else None,
+        "updated_at": equipment.updated_at.isoformat() if equipment.updated_at else None
+    }
 
 
 @app.put("/api/equipment/{equipment_id}")
@@ -299,11 +377,23 @@ def update_equipment(
     
     db.commit()
     db.refresh(equipment)
-    return equipment
+    return {
+        "id": equipment.id,
+        "name": equipment.name,
+        "barcode": equipment.barcode,
+        "equipment_type_id": equipment.equipment_type_id,
+        "status_id": equipment.status_id,
+        "department_id": equipment.department_id,
+        "user_id": equipment.user_id,
+        "comment": equipment.comment,
+        "created_by_id": equipment.created_by_id,
+        "created_at": equipment.created_at.isoformat() if equipment.created_at else None,
+        "updated_at": equipment.updated_at.isoformat() if equipment.updated_at else None
+    }
 
 
 # Movement History endpoints
-@app.get("/api/movement-history", response_model=List[dict])
+@app.get("/api/movement-history")
 def get_movement_history(
     db: Session = Depends(get_db),
     equipment_id: Optional[int] = None,
@@ -333,7 +423,21 @@ def get_movement_history(
         query = query.filter(models.MovementHistory.equipment_id.in_(equipment_ids))
     
     history = query.order_by(models.MovementHistory.created_at.desc()).all()
-    return history
+    
+    # Convert to dictionaries
+    result = []
+    for h in history:
+        result.append({
+            "id": h.id,
+            "equipment_id": h.equipment_id,
+            "status_id": h.status_id,
+            "department_id": h.department_id,
+            "user_id": h.user_id,
+            "comment": h.comment,
+            "created_at": h.created_at.isoformat() if h.created_at else None
+        })
+    
+    return result
 
 
 @app.post("/api/movement/change-status")
@@ -407,8 +511,26 @@ def get_not_active_equipment(
     if equipment_type_id:
         query = query.filter(models.Equipment.equipment_type_id == equipment_type_id)
     
-    equipment = query.all()
-    return equipment
+    equipment_list = query.all()
+    
+    # Convert to dictionaries
+    result = []
+    for eq in equipment_list:
+        result.append({
+            "id": eq.id,
+            "name": eq.name,
+            "barcode": eq.barcode,
+            "equipment_type_id": eq.equipment_type_id,
+            "status_id": eq.status_id,
+            "department_id": eq.department_id,
+            "user_id": eq.user_id,
+            "comment": eq.comment,
+            "created_by_id": eq.created_by_id,
+            "created_at": eq.created_at.isoformat() if eq.created_at else None,
+            "updated_at": eq.updated_at.isoformat() if eq.updated_at else None
+        })
+    
+    return result
 
 
 if __name__ == "__main__":
